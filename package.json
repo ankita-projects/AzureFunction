@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@azure/storage-blob": "^12.8.0",
+    "axios": "^0.25.0",
     "download-file-sync": "^1.0.4",
     "node-fetch": "^3.2.0"
   },
