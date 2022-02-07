@@ -6,19 +6,18 @@ const containerName = "source-image-container"
 const account = "ankitaazunsplashtest";
 const accountKey = "/3JWyw6kpRuJoHXJvpOhn/a519EbXJ8jQ9ggFJ5Tlt6KGLeiIi8oCFH7swFT0gPIaNDrvg5+mnLdjKHfIvEnSQ==";
 
-
 module.exports = async function (context, req) {               //http trigger
     let unsplashAPIresponse = "empty";
-    let unsplashAPIImageResponse = 'empty';
+
     const unsplashAPIUrl = 'https://api.unsplash.com/photos/random?client_id=gK52De2Tm_dL5o1IXKa9FROBAJ-LIYqR41xBdlg3X2k';
     try {
         unsplashAPIresponse = await callAPI(unsplashAPIUrl);
         // holds response from server that is passed when Promise is resolved
         let unsplashResJson = JSON.parse(unsplashAPIresponse);
-        unsplashAPIImageResponse = unsplashResJson.urls.small;
-        const imageFileName = `newImage${new Date().getTime()}` + '.jpeg';
+
+        const imageFileName = `newImage${new Date().getTime()}` + '.jpeg'; //unique name for file that will be created after we download 
         await downloadImage(unsplashResJson.urls.small, imageFileName);
-        //fs.writeFileSync(imageFileName, downloadFileSync(unsplashResJson.urls.small), 'binary');
+
         let blobServiceClient = createBlobServiceClinet();
         //you can check if the container exists or not, then determine to create it or not
         try {
