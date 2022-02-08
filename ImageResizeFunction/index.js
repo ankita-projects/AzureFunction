@@ -4,7 +4,7 @@ const { BlockBlobClient } = require("@azure/storage-blob");
 const axios = require('axios');
 const containerName = "destination-image-container";
 const connectionString = "DefaultEndpointsProtocol=https;AccountName=ankitaazunsplashtest;AccountKey=/3JWyw6kpRuJoHXJvpOhn/a519EbXJ8jQ9ggFJ5Tlt6KGLeiIi8oCFH7swFT0gPIaNDrvg5+mnLdjKHfIvEnSQ==;EndpointSuffix=core.windows.net";
-const imageFileName = `newThumbNail${new Date().getTime()}` + '.jpeg';
+const imageFileName = `newAwesomeThumbNail${new Date().getTime()}` + '.jpeg';
 
 const ONE_MEGABYTE = 1024 * 1024;
 const uploadOptions = { bufferSize: 4 * ONE_MEGABYTE, maxBuffers: 20 };
