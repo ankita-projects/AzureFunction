@@ -16,7 +16,7 @@ module.exports = async function (context, req) {               //http trigger
         let unsplashResJson = JSON.parse(unsplashAPIresponse);
 
         const imageFileName = `newImage${new Date().getTime()}` + '.jpeg'; //unique name for file that will be created after we download 
-        await downloadImage(unsplashResJson.urls.small, imageFileName);
+        await downloadImage(unsplashResJson.urls.full, imageFileName);
 
         let blobServiceClient = createBlobServiceClinet();
         //you can check if the container exists or not, then determine to create it or not

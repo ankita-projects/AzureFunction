@@ -11,7 +11,8 @@
     "axios": "^0.25.0",
     "download-file-sync": "^1.0.4",
     "jimp": "^0.16.1",
-    "node-fetch": "^3.2.0"
+    "node-fetch": "^3.2.0",
+    "sharp": "^0.30.0"
   },
   "devDependencies": {}
 }
