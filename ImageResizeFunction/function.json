@@ -1,11 +1,12 @@
 {
+  "disabled": false,
   "bindings": [
-    {
-      "name": "myBlob",
-      "type": "blobTrigger",
-      "direction": "in",
-      "path": "source-image-container/{name}",
-      "connection": "AzureWebJobsStorage"
-    }
+      {
+          "type": "queueTrigger",
+          "direction": "in",
+          "name": "myQueueItem",
+          "queueName": "image-procesing-queue",
+          "connection":"MyStorageConnectionAppSetting"
+      }
   ]
 }

@@ -3,19 +3,31 @@ const { BlobServiceClient, StorageSharedKeyCredential } = require("@azure/storag
 const fs = require('fs');
 const axios = require('axios');
 const containerName = "source-image-container"
-const account = "ankitaazunsplashtest";
-const accountKey = "/3JWyw6kpRuJoHXJvpOhn/a519EbXJ8jQ9ggFJ5Tlt6KGLeiIi8oCFH7swFT0gPIaNDrvg5+mnLdjKHfIvEnSQ==";
+const account = "imageprocessingapp";
+const accountKey = "dIk3vqIM4YLjbPdISzp+FqRqw2t8nB2yZZ+JHR7sQskjpAnjy9T9Afvc7l1xGkh/Uo9RaWCx4rgiWteWI7cmIw==";
+const localFilePath = "D:/local/Temp/";
+//Creating storage queue
+const { QueueClient, QueueServiceClient } = require("@azure/storage-queue");
+//queueConnectionString contains information that is required to connect to image processor storage account
+const queueConnectionString = "DefaultEndpointsProtocol=https;AccountName=imageprocessingapp;AccountKey=dIk3vqIM4YLjbPdISzp+FqRqw2t8nB2yZZ+JHR7sQskjpAnjy9T9Afvc7l1xGkh/Uo9RaWCx4rgiWteWI7cmIw==;EndpointSuffix=core.windows.net";
+//connecting
+const queueServiceClient = QueueServiceClient.fromConnectionString(queueConnectionString);
+const queueName = "image-procesing-queue";
+const queueClient = queueServiceClient.getQueueClient(queueName);
 
-module.exports = async function (context, req) {               //http trigger
+module.exports = async function (context, req) {              //http trigger
     let unsplashAPIresponse = "empty";
-
+    let unsplashResJson;
+    const name = (req.query.name || (req.body && req.body.name));
+    const imageFileName = name + `sImage${new Date().getTime()}` + '.jpeg';
     const unsplashAPIUrl = 'https://api.unsplash.com/photos/random?client_id=gK52De2Tm_dL5o1IXKa9FROBAJ-LIYqR41xBdlg3X2k';
     try {
+
         unsplashAPIresponse = await callAPI(unsplashAPIUrl);
         // holds response from server that is passed when Promise is resolved
-        let unsplashResJson = JSON.parse(unsplashAPIresponse);
+        unsplashResJson = JSON.parse(unsplashAPIresponse);
 
-        const imageFileName = `newImage${new Date().getTime()}` + '.jpeg'; //unique name for file that will be created after we download 
+        //unique name for file that will be created after we download 
         await downloadImage(unsplashResJson.urls.full, imageFileName);
 
         let blobServiceClient = createBlobServiceClinet();
@@ -26,8 +38,10 @@ module.exports = async function (context, req) {               //http trigger
         catch (error) {
             context.log(error);
         }
-        await uploadBlobContent(blobServiceClient, fs.readFileSync(imageFileName), imageFileName)
-        fs.unlinkSync(imageFileName)
+        await uploadBlobContent(blobServiceClient, fs.readFileSync(localFilePath + imageFileName), imageFileName)
+        fs.unlinkSync(localFilePath + imageFileName)
+        await sendMessageToQueue(imageFileName);
+
     }
     catch (error) {
         // Promise rejected
@@ -35,10 +49,17 @@ module.exports = async function (context, req) {               //http trigger
     }
     context.log('JavaScript HTTP trigger function processed a request.');
     context.res = {
-        // status: 200, /* Defaults to 200 */
-        body: unsplashAPIresponse
+        body: "<!DOCTYPE html> <html> <head> </head> <body><h1>" + imageFileName + " Below Image uploaded to Blob storage </h1> " + "<img src='" + unsplashResJson.urls.small + "' ></img></body> </html>",
+        headers: {
+            'Content-Type': 'text/html; charset=utf-8'
+        }
+
     };
 }
+function sendMessageToQueue(message) {
+    return queueClient.sendMessage(Buffer.from(message).toString('base64'));
+}
+
 const downloadImage = (url, imageFileName) =>
     axios({
         url,
@@ -47,7 +68,7 @@ const downloadImage = (url, imageFileName) =>
         response =>
             new Promise((resolve, reject) => {
                 response.data
-                    .pipe(fs.createWriteStream(imageFileName))
+                    .pipe(fs.createWriteStream(localFilePath + imageFileName))
                     .on('finish', () => resolve())
                     .on('error', e => reject(e));
             }),
@@ -60,6 +81,7 @@ function createBlobServiceClinet() {
         sharedKeyCredential
     );
 }
+
 function createContainer(blobServiceClient) {
     const containerClient = blobServiceClient.getContainerClient(containerName);
     return containerClient.create();
