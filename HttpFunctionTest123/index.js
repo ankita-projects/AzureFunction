@@ -1,19 +1,22 @@
 const http = require('https');
+const { SecretClient } = require("@azure/keyvault-secrets");
+const { DefaultAzureCredential } = require("@azure/identity");
+const { QueueServiceClient } = require("@azure/storage-queue");
 const { BlobServiceClient, StorageSharedKeyCredential } = require("@azure/storage-blob");
 const fs = require('fs');
 const axios = require('axios');
+
 const containerName = "source-image-container"
-const account = "imageprocessingapp";
-const accountKey = "dIk3vqIM4YLjbPdISzp+FqRqw2t8nB2yZZ+JHR7sQskjpAnjy9T9Afvc7l1xGkh/Uo9RaWCx4rgiWteWI7cmIw==";
+const credential = new DefaultAzureCredential();
+const keyVaultName = "imageProcesserKeyvalult";
+const url = "https://" + keyVaultName + ".vault.azure.net";
+const secretclient = new SecretClient(url, credential);
+
+
 const localFilePath = "D:/local/Temp/";
-//Creating storage queue
-const { QueueClient, QueueServiceClient } = require("@azure/storage-queue");
-//queueConnectionString contains information that is required to connect to image processor storage account
-const queueConnectionString = "DefaultEndpointsProtocol=https;AccountName=imageprocessingapp;AccountKey=dIk3vqIM4YLjbPdISzp+FqRqw2t8nB2yZZ+JHR7sQskjpAnjy9T9Afvc7l1xGkh/Uo9RaWCx4rgiWteWI7cmIw==;EndpointSuffix=core.windows.net";
 //connecting
-const queueServiceClient = QueueServiceClient.fromConnectionString(queueConnectionString);
-const queueName = "image-procesing-queue";
-const queueClient = queueServiceClient.getQueueClient(queueName);
+
+
 
 module.exports = async function (context, req) {              //http trigger
     let unsplashAPIresponse = "empty";
@@ -30,7 +33,7 @@ module.exports = async function (context, req) {              //http trigger
         //unique name for file that will be created after we download 
         await downloadImage(unsplashResJson.urls.full, imageFileName);
 
-        let blobServiceClient = createBlobServiceClinet();
+        let blobServiceClient = await createBlobServiceClinet();
         //you can check if the container exists or not, then determine to create it or not
         try {
             await createContainer(blobServiceClient)
@@ -40,7 +43,11 @@ module.exports = async function (context, req) {              //http trigger
         }
         await uploadBlobContent(blobServiceClient, fs.readFileSync(localFilePath + imageFileName), imageFileName)
         fs.unlinkSync(localFilePath + imageFileName)
-        await sendMessageToQueue(imageFileName);
+        //Creating storage queue
+
+        //queueConnectionString contains information that is required to connect to image processor storage account
+        const queueClient = await createQueueClient();
+        await sendMessageToQueue(queueClient, imageFileName);
 
     }
     catch (error) {
@@ -56,7 +63,16 @@ module.exports = async function (context, req) {              //http trigger
 
     };
 }
-function sendMessageToQueue(message) {
+async function createQueueClient() {
+    const queueConnectionString = (await secretclient.getSecret("ImageStorageAccountConnectionString")).value;
+
+    const queueServiceClient = QueueServiceClient.fromConnectionString(queueConnectionString);
+    const queueName = (await secretclient.getSecret("imageProcessorQueueName")).value;
+    const queueClient = queueServiceClient.getQueueClient(queueName);
+    return queueClient;
+}
+
+function sendMessageToQueue(queueClient, message) {
     return queueClient.sendMessage(Buffer.from(message).toString('base64'));
 }
 
@@ -73,7 +89,9 @@ const downloadImage = (url, imageFileName) =>
                     .on('error', e => reject(e));
             }),
     );
-function createBlobServiceClinet() {
+async function createBlobServiceClinet() {
+    const account =  (await secretclient.getSecret("ImageStorageAccountName")).value;
+    const accountKey =  (await secretclient.getSecret("ImageStorageAccountKey")).value;
     const sharedKeyCredential = new StorageSharedKeyCredential(account, accountKey);
     return new BlobServiceClient(
         // When using AnonymousCredential, following url should include a valid SAS or support public access
