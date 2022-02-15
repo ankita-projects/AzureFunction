@@ -1,10 +1,12 @@
 const http = require('https');
 const { SecretClient } = require("@azure/keyvault-secrets");
 const { DefaultAzureCredential } = require("@azure/identity");
+const CosmosClient = require("@azure/cosmos").CosmosClient;
 const { QueueServiceClient } = require("@azure/storage-queue");
 const { BlobServiceClient, StorageSharedKeyCredential } = require("@azure/storage-blob");
 const fs = require('fs');
 const axios = require('axios');
+
 
 const containerName = "source-image-container"
 const credential = new DefaultAzureCredential();
@@ -14,8 +16,7 @@ const secretclient = new SecretClient(url, credential);
 
 
 const localFilePath = "D:/local/Temp/";
-//connecting
-
+//function local file path
 
 
 module.exports = async function (context, req) {              //http trigger
@@ -42,12 +43,23 @@ module.exports = async function (context, req) {              //http trigger
             context.log(error);
         }
         await uploadBlobContent(blobServiceClient, fs.readFileSync(localFilePath + imageFileName), imageFileName)
+        var stats = fs.statSync(localFilePath + imageFileName);
         fs.unlinkSync(localFilePath + imageFileName)
         //Creating storage queue
 
         //queueConnectionString contains information that is required to connect to image processor storage account
         const queueClient = await createQueueClient();
         await sendMessageToQueue(queueClient, imageFileName);
+
+
+
+        const imageData = {
+            partitionKey: unsplashResJson.id,
+            originalImageName: imageFileName,
+            size: stats.size
+
+        };
+        await insertImageDataInTable(imageData);
 
     }
     catch (error) {
@@ -63,6 +75,23 @@ module.exports = async function (context, req) {              //http trigger
 
     };
 }
+
+
+async function insertImageDataInTable(imageData) {
+    const options = {
+        endpoint: (await secretclient.getSecret("image-db-endpoint")).value,
+        key: (await secretclient.getSecret("image-db-key")).value
+    };
+    const client = new CosmosClient(options)
+    const imageDBTableName = "image-processor-db-table";
+    const imageDBContainerName = "image-container";
+    return client
+        .database(imageDBTableName)
+        .container(imageDBContainerName)
+        .items.upsert(imageData)
+
+}
+
 async function createQueueClient() {
     const queueConnectionString = (await secretclient.getSecret("ImageStorageAccountConnectionString")).value;
 
@@ -90,8 +119,8 @@ const downloadImage = (url, imageFileName) =>
             }),
     );
 async function createBlobServiceClinet() {
-    const account =  (await secretclient.getSecret("ImageStorageAccountName")).value;
-    const accountKey =  (await secretclient.getSecret("ImageStorageAccountKey")).value;
+    const account = (await secretclient.getSecret("ImageStorageAccountName")).value;
+    const accountKey = (await secretclient.getSecret("ImageStorageAccountKey")).value;
     const sharedKeyCredential = new StorageSharedKeyCredential(account, accountKey);
     return new BlobServiceClient(
         // When using AnonymousCredential, following url should include a valid SAS or support public access

@@ -2,6 +2,7 @@
 const Jimp = require('jimp');
 const { SecretClient } = require("@azure/keyvault-secrets");
 const { DefaultAzureCredential } = require("@azure/identity");
+const CosmosClient = require("@azure/cosmos").CosmosClient;
 const stream = require('stream');
 const { BlobServiceClient, BlockBlobClient } = require("@azure/storage-blob");
 const axios = require('axios');
