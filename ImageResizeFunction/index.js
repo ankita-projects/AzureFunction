@@ -8,6 +8,7 @@ const { BlobServiceClient, BlockBlobClient } = require("@azure/storage-blob");
 const axios = require('axios');
 const sourceContainerName = "source-image-container";
 const destinationContainerName = "destination-image-container";
+const filesize = require("filesize");
 
 
 const credential = new DefaultAzureCredential();
@@ -26,26 +27,24 @@ const localFilePath = "D:/local/Temp/";
 const ONE_MEGABYTE = 1024 * 1024;
 const uploadOptions = { bufferSize: 4 * ONE_MEGABYTE, maxBuffers: 20 };
 module.exports = async function (context, message) {
-    const imageFileName = message ? message : `newImage${new Date().getTime()}` + '.jpeg';
+    context.log("in coming message " + message.fileName);
+
+    const imageFileName = message.fileName ? message.fileName : `newImage${new Date().getTime()}` + '.jpeg';
     const connectionString = (await secretclient.getSecret("ImageStorageAccountConnectionString")).value;
     try {
         context.log('Node.js queue trigger function processed work item', context.bindingData.id);
-        await axios.get('https://enb31hpgmba4527.m.pipedream.net', {
-            headers: {
-                'Test-Header': 'test-value',
-                'fx-data': message
-            }
-        });
+
         const blobServiceClient = BlobServiceClient.fromConnectionString(connectionString);
         // Get a reference to a container
         const containerClient = blobServiceClient.getContainerClient(sourceContainerName);
         // Get a block blob client
-        const sourceBlockBlobClient = containerClient.getBlockBlobClient(message);
+        const sourceBlockBlobClient = containerClient.getBlockBlobClient(message.fileName);
         // OR access using context.bindings.<name>
         // context.log('Node.js queue trigger function processed work item', context.bindings.myQueueItem);
         const thumbnailWidth = 100;
         const mediumWidth = 400;
         const largeWidth = 800;
+
         await sourceBlockBlobClient.download(0).then(response =>
             new Promise((resolve, reject) => {
                 response.readableStreamBody
@@ -54,13 +53,15 @@ module.exports = async function (context, message) {
                     .on('error', e => reject(e));
             }));
         context.log("file Downloaded from BlobStore " + fs.existsSync(localFilePath + imageFileName))
+        var stats = fs.statSync(localFilePath + imageFileName);
+        
         await Jimp.read(localFilePath + imageFileName).then((originalImage) => {
             originalImage.resize(mediumWidth, Jimp.AUTO);
             originalImage.getBuffer(Jimp.MIME_JPEG, async (err, buffer) => {
                 const readStream = stream.PassThrough();
                 readStream.end(buffer);
-              
-                const blobClient = new BlockBlobClient(connectionString, destinationContainerName, mediumImagePath + "medium"+imageFileName);
+
+                const blobClient = new BlockBlobClient(connectionString, destinationContainerName, mediumImagePath + "medium" + imageFileName);
                 try {
                     await blobClient.uploadStream(readStream,
                         uploadOptions.bufferSize,
@@ -69,13 +70,14 @@ module.exports = async function (context, message) {
                 } catch (err) {
                     context.log(err.message);
                 }
+                dataToBeInsertedInCosmosDb.mediumImageName = "medium" + imageFileName;
             });
 
             originalImage.resize(largeWidth, Jimp.AUTO);
             originalImage.getBuffer(Jimp.MIME_JPEG, async (err, buffer) => {
                 const readStream = stream.PassThrough();
                 readStream.end(buffer);
-                const blobClient = new BlockBlobClient(connectionString, destinationContainerName, largeImagePath + "large"+imageFileName);
+                const blobClient = new BlockBlobClient(connectionString, destinationContainerName, largeImagePath + "large" + imageFileName);
                 try {
                     await blobClient.uploadStream(readStream,
                         uploadOptions.bufferSize,
@@ -90,7 +92,7 @@ module.exports = async function (context, message) {
             originalImage.getBuffer(Jimp.MIME_JPEG, async (err, buffer) => {
                 const readStream = stream.PassThrough();
                 readStream.end(buffer);
-                const blobClient = new BlockBlobClient(connectionString, destinationContainerName, smallImagePath + "small"+imageFileName);
+                const blobClient = new BlockBlobClient(connectionString, destinationContainerName, smallImagePath + "small" + imageFileName);
                 try {
                     await blobClient.uploadStream(readStream,
                         uploadOptions.bufferSize,
@@ -101,9 +103,36 @@ module.exports = async function (context, message) {
                 }
             });
         });
+        var dataToBeInsertedInCosmosDb = {
+            id : message.itemId,
+            partitionKey: message.fileId,
+            originalImageName: message.fileName,
+            origionalFileSize: filesize(stats.size, { round: 0 }),
+            mediumImageName: "medium" + imageFileName,
+            smallImageName: "small" + imageFileName,
+            largeImageName: "large" + imageFileName
+        };
         fs.unlinkSync(localFilePath + imageFileName)
+
+        await insertImageDataInTable(dataToBeInsertedInCosmosDb);
         context.done();
     } catch (err) {
         context.log(err);
     }
+
 };
+
+async function insertImageDataInTable(imageData) {
+    const options = {
+        endpoint: (await secretclient.getSecret("image-db-endpoint")).value,
+        key: (await secretclient.getSecret("image-db-key")).value
+    };
+    const client = new CosmosClient(options)
+    const imageDBTableName = "image-processor-db-table";
+    const imageDBContainerName = "image-container";
+    return client
+        .database(imageDBTableName)
+        .container(imageDBContainerName)
+        .items.upsert(imageData)
+
+}

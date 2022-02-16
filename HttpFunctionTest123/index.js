@@ -6,6 +6,7 @@ const { QueueServiceClient } = require("@azure/storage-queue");
 const { BlobServiceClient, StorageSharedKeyCredential } = require("@azure/storage-blob");
 const fs = require('fs');
 const axios = require('axios');
+const filesize = require("filesize");
 
 
 const containerName = "source-image-container"
@@ -47,19 +48,18 @@ module.exports = async function (context, req) {              //http trigger
         fs.unlinkSync(localFilePath + imageFileName)
         //Creating storage queue
 
-        //queueConnectionString contains information that is required to connect to image processor storage account
-        const queueClient = await createQueueClient();
-        await sendMessageToQueue(queueClient, imageFileName);
-
-
-
         const imageData = {
             partitionKey: unsplashResJson.id,
             originalImageName: imageFileName,
-            size: stats.size
+            origionalFileSize: filesize(stats.size, { round: 0 })
 
         };
-        await insertImageDataInTable(imageData);
+        const dbResponse = await insertImageDataInTable(imageData);
+        //queueConnectionString contains information that is required to connect to image processor storage account
+        const queueClient = await createQueueClient();
+        context.log("Db response " + dbResponse.item.id);
+        const messageJson = { fileName: imageFileName, fileId: unsplashResJson.id, itemId: dbResponse.item.id }
+        await sendMessageToQueue(queueClient, JSON.stringify(messageJson));
 
     }
     catch (error) {
@@ -85,7 +85,7 @@ async function insertImageDataInTable(imageData) {
     const client = new CosmosClient(options)
     const imageDBTableName = "image-processor-db-table";
     const imageDBContainerName = "image-container";
-    return client
+    return await client
         .database(imageDBTableName)
         .container(imageDBContainerName)
         .items.upsert(imageData)
