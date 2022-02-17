@@ -54,13 +54,22 @@ module.exports = async function (context, message) {
             }));
         context.log("file Downloaded from BlobStore " + fs.existsSync(localFilePath + imageFileName))
         var stats = fs.statSync(localFilePath + imageFileName);
-        
+        var dataToBeInsertedInCosmosDb = {
+            id: message.itemId,
+            partitionKey: message.fileId,
+            originalImageName: message.fileName,
+            origionalFileSize: filesize(stats.size, { round: 0 }),
+            mediumImageName: "medium" + imageFileName,
+            smallImageName: "small" + imageFileName,
+            largeImageName: "large" + imageFileName,
+        };
+
         await Jimp.read(localFilePath + imageFileName).then((originalImage) => {
             originalImage.resize(mediumWidth, Jimp.AUTO);
             originalImage.getBuffer(Jimp.MIME_JPEG, async (err, buffer) => {
                 const readStream = stream.PassThrough();
                 readStream.end(buffer);
-
+                //dataToBeInsertedInCosmosDb.mediumlFileSize = filesize(buffer.size, { round: 0 });
                 const blobClient = new BlockBlobClient(connectionString, destinationContainerName, mediumImagePath + "medium" + imageFileName);
                 try {
                     await blobClient.uploadStream(readStream,
@@ -70,7 +79,7 @@ module.exports = async function (context, message) {
                 } catch (err) {
                     context.log(err.message);
                 }
-                dataToBeInsertedInCosmosDb.mediumImageName = "medium" + imageFileName;
+                
             });
 
             originalImage.resize(largeWidth, Jimp.AUTO);
@@ -86,6 +95,7 @@ module.exports = async function (context, message) {
                 } catch (err) {
                     context.log(err.message);
                 }
+                //dataToBeInsertedInCosmosDb.largeFileSize = filesize(buffer.size, { round: 0 });
             });
 
             originalImage.resize(thumbnailWidth, Jimp.AUTO);
@@ -101,17 +111,9 @@ module.exports = async function (context, message) {
                 } catch (err) {
                     context.log(err.message);
                 }
+                //dataToBeInsertedInCosmosDb.mediumlFileSize = filesize(buffer.size, { round: 0 });
             });
         });
-        var dataToBeInsertedInCosmosDb = {
-            id : message.itemId,
-            partitionKey: message.fileId,
-            originalImageName: message.fileName,
-            origionalFileSize: filesize(stats.size, { round: 0 }),
-            mediumImageName: "medium" + imageFileName,
-            smallImageName: "small" + imageFileName,
-            largeImageName: "large" + imageFileName
-        };
         fs.unlinkSync(localFilePath + imageFileName)
 
         await insertImageDataInTable(dataToBeInsertedInCosmosDb);
