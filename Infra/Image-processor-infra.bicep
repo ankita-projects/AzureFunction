@@ -1,3 +1,12 @@
+param function_app_name string = 'image-processor-function-app'
+param appservice_plan_name string = 'image-processor-app-service-app'
+param app_insights_name string = 'image-processor-appinsights'
+param image_storage_Db_account_name string = 'image-processor-db-account' 
+
+var unique_string = uniqueString(resourceGroup().id)
+var unique_function_name = '${function_app_name}-${unique_string}'
+var unique_DB_account_name = '${image_storage_Db_account_name}-${unique_string}'
+
 targetScope = 'resourceGroup'
 resource imageStorageAccount 'Microsoft.Storage/storageAccounts@2020-08-01-preview' = {
   name: 'imageprostorageaccount1'
@@ -56,7 +65,7 @@ resource imageQueue 'Microsoft.Storage/storageAccounts/queueServices/queues@2021
 
 
 resource imageStorageDbAccount 'Microsoft.DocumentDB/databaseAccounts@2021-04-15' = {
-  name: 'image-processor-db-account'
+  name: unique_DB_account_name
   location: resourceGroup().location
   properties:{
     databaseAccountOfferType:'Standard'
@@ -174,6 +183,69 @@ resource ImageStorageDBAccountEndpoint 'Microsoft.KeyVault/vaults/secrets@2021-1
     value: imageStorageDbAccount.listConnectionStrings().connectionStrings[0].connectionString
   }
 }
+
+resource appservice_plan 'Microsoft.Web/serverfarms@2020-12-01' = {
+  name: appservice_plan_name
+  location:resourceGroup().location
+  sku: {
+    name: 'Y1'
+    tier: 'Dynamic'
+  }
+}
+
+resource app_insights 'Microsoft.Insights/components@2015-05-01' = {
+  name: app_insights_name
+  location: resourceGroup().location
+  kind: 'web'
+  properties: {
+    Application_Type: 'web'
+  }
+}
+
+
+resource function_app 'Microsoft.Web/sites@2020-12-01' = {
+  name: unique_function_name
+  location: resourceGroup().location
+  kind: 'functionapp'
+  dependsOn: [
+    imageStorageAccount
+    appservice_plan
+    app_insights
+  ]
+  properties: {
+    serverFarmId: appservice_plan.id
+    siteConfig: {
+      appSettings: [
+        {
+          name: 'AzureWebJobsStorage'
+          value: concat('DefaultEndpointsProtocol=https;AccountName=',  imageStorageAccount.name, ';AccountKey=', listKeys( imageStorageAccount.id, '2019-06-01').keys[0].value)
+        }
+        {
+          name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
+          value: reference(app_insights.id, '2015-05-01').InstrumentationKey
+        }
+        {
+          name: 'FUNCTIONS_EXTENSION_VERSION'
+          value: '~3'
+        }
+        {
+          name: 'FUNCTIONS_WORKER_RUNTIME'
+          value: 'node'
+        }
+        {
+          name: 'WEBSITE_NODE_DEFAULT_VERSION'
+          value: '~14'
+        }
+        {
+          name: 'WEBSITE_RUN_FROM_PACKAGE'
+          value: 'https://github.com/mjisaak/azure-func-with-bicep/releases/download/v0.0.1/function.zip'
+        }
+      ]
+    }
+  }
+}
+
+
 
 
 
