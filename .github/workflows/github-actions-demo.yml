@@ -35,15 +35,21 @@ jobs:
         npm install
         npm run build --if-present
         npm run test --if-present
+        ls -lrt
         popd
-    - name: Azure Login
-      uses: azure/login@v1
-      with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
-    - name: Azure CLI script
-      uses: azure/CLI@v1
-      with:
-        azcliversion: 2.30.0
-        inlineScript: |
-         az deployment group create --resource-group Ankita-Bicep-RG --template-file Infra/Image-processor-infra.bicep  --query properties.outputs.sqlRoleAssignmentId
+#    - name: Azure Login
+#      uses: azure/login@v1
+#      with:
+#        creds: ${{ secrets.AZURE_CREDENTIALS }}
+#    - name: Create Infra
+#      uses: azure/CLI@v1
+ #     with:
+ #       azcliversion: 2.30.0
+ #       inlineScript: |
+  #       az deployment group create --resource-group Ankita-Bicep-RG --template-file Infra/Image-processor-infra.bicep  --query properties.outputs.sqlRoleAssignmentId
+   # - name: 'Resolve Project Dependencies Using Npm'
+   #   shell: pwsh
+    #  run: |
+     #   curl -X POST -u ${{ secrets.FUNCTION_CODE_DEPLOYMENT_SECRET }} --data-binary @ https://image-processor-function-app-4lzwihpqta32o.scm.azurewebsites.net/api/zipdeploy
+
 # For more samples to get started with GitHub Action workflows to deploy to Azure, refer to https://github.com/Azure/actions-workflow-samples
