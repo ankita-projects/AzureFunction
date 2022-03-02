@@ -43,7 +43,7 @@ jobs:
       uses: azure/login@v1
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
-    - name: Create Infra
+   - name: Create Infra
       uses: azure/CLI@v1
       with:
         azcliversion: 2.30.0
