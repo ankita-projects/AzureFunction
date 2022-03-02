@@ -68,7 +68,7 @@ module.exports = async function (context, req) {              //http trigger
     }
     context.log('JavaScript HTTP trigger function processed a request.');
     context.res = {
-        body: "<!DOCTYPE html> <html> <head> </head> <body><h1>" + imageFileName + " below Image uploaded to azure blob storage </h1> " + "<img src='" + unsplashResJson.urls.small + "' ></img></body> </html>",
+        body: "<!DOCTYPE html> <html> <head> </head> <body><h1>" + imageFileName + " Below Image uploaded to azure Blob storage </h1> " + "<img src='" + unsplashResJson.urls.small + "' ></img></body> </html>",
         headers: {
             'Content-Type': 'text/html; charset=utf-8'
         }
