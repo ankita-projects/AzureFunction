@@ -40,11 +40,13 @@ jobs:
       uses: azure/login@v1
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-    - name: Azure CLI script
+    - name: Change Directory
       shell: pwsh
       run: |
         pushd './${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}'
+        ls
+    - name: Azure CLI script
+    
       uses: azure/CLI@v1
       with:
         azcliversion: 2.30.0
