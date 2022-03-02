@@ -44,7 +44,7 @@ jobs:
       shell: pwsh
       run: |
         pushd './${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}'
-        ls
+        az deployment group create --resource-group Ankita-Bicep-RG --template-file infra/Image-processor-infra.bicep  --query properties.outputs.sqlRoleAssignmentId
     - name: Azure CLI script
     
       uses: azure/CLI@v1
