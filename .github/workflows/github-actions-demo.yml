@@ -37,6 +37,7 @@ jobs:
         npm run test --if-present
         ls -lrt
         zip -r functionDeploymetPackage.zip .
+        ls -lrt
         popd
 #    - name: Azure Login
 #      uses: azure/login@v1
