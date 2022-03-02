@@ -35,7 +35,6 @@ jobs:
         npm install
         npm run build --if-present
         npm run test --if-present
-     
         zip -r functionDeploymetPackage.zip .
         ls -lrt
         popd
