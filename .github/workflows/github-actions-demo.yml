@@ -42,12 +42,12 @@ jobs:
       uses: azure/login@v1
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
-    #- name: Create Infra
-    #  uses: azure/CLI@v1
-    #  with:
-    #    azcliversion: 2.30.0
-    #    inlineScript: |
-    #     az deployment group create --resource-group Ankita-Bicep-RG --template-file Infra/Image-processor-infra.bicep  --query properties.outputs.sqlRoleAssignmentId
+    - name: Create Infra
+      uses: azure/CLI@v1
+      with:
+        azcliversion: 2.30.0
+        inlineScript: |
+         az deployment group create --resource-group Ankita-Bicep-RG --template-file Infra/Image-processor-infra.bicep  --query properties.outputs.sqlRoleAssignmentId
     - name: 'Deploy Function Code'
       uses: wei/curl@v1
       with:

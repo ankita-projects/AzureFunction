@@ -169,6 +169,14 @@ resource ImageStorageAccountKey 'Microsoft.KeyVault/vaults/secrets@2021-11-01-pr
   }
 }
 
+resource ImageStorageAccountName 'Microsoft.KeyVault/vaults/secrets@2021-11-01-preview' = {
+  name: 'ImageStorageAccountName'
+  parent: keyVault // Pass key vault symbolic name as parent
+  properties: {
+    value: imageStorageAccount.name
+  }
+}
+
 resource ImageStorageDBAccountKey 'Microsoft.KeyVault/vaults/secrets@2021-11-01-preview' = {
   name: 'image-db-key'
   parent: keyVault // Pass key vault symbolic name as parent
@@ -181,6 +189,14 @@ resource ImageStorageDBAccountEndpoint 'Microsoft.KeyVault/vaults/secrets@2021-1
   parent: keyVault // Pass key vault symbolic name as parent
   properties: {
     value: imageStorageDbAccount.listConnectionStrings().connectionStrings[0].connectionString
+  }
+}
+
+resource imageProcessorQueueName 'Microsoft.KeyVault/vaults/secrets@2021-11-01-preview' = {
+  name: 'imageProcessorQueueName'
+  parent: keyVault // Pass key vault symbolic name as parent
+  properties: {
+    value: imageQueue.name
   }
 }
 
