@@ -223,6 +223,9 @@ resource function_app 'Microsoft.Web/sites@2020-12-01' = {
   name: unique_function_name
   location: resourceGroup().location
   kind: 'functionapp'
+  identity: {
+    type: 'SystemAssigned'
+  }
   dependsOn: [
     imageStorageAccount
     appservice_plan

@@ -1,6 +1,6 @@
 const http = require('https');
 const { SecretClient } = require("@azure/keyvault-secrets");
-const { DefaultAzureCredential } = require("@azure/identity");
+const { ClientSecretCredential  } = require("@azure/identity");
 const CosmosClient = require("@azure/cosmos").CosmosClient;
 const { QueueServiceClient } = require("@azure/storage-queue");
 const { BlobServiceClient, StorageSharedKeyCredential } = require("@azure/storage-blob");
@@ -10,10 +10,12 @@ const filesize = require("filesize");
 
 
 const containerName = "source-image-container"
-const credential = new DefaultAzureCredential();
+const tenantId = "14b9c9b3-f9f3-4635-ba89-1327fcf80e2e"
+const clientId = "dd7df319-77b9-4106-8ece-38e0a33594e0"
+const credentials = new ClientSecretCredential(tenantId, clientId, secret);
 const keyVaultName = "imageProcesserKeyvalult2";
 const url = "https://" + keyVaultName + ".vault.azure.net";
-const secretclient = new SecretClient(url, credential);
+const secretclient = new SecretClient(url, credentials);
 
 
 const localFilePath = "D:/local/Temp/";

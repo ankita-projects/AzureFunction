@@ -13,6 +13,7 @@
     "@azure/storage-blob": "^12.8.0",
     "@azure/storage-queue": "^12.7.0",
     "axios": "^0.25.0",
+    "azure-cli": "^0.10.20",
     "download-file-sync": "^1.0.4",
     "filesize": "^8.0.7",
     "jimp": "^0.16.1",
