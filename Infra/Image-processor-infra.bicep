@@ -6,6 +6,8 @@ param image_storage_Db_account_name string = 'image-processor-db-account'
 var unique_string = uniqueString(resourceGroup().id)
 var unique_function_name = '${function_app_name}-${unique_string}'
 var unique_DB_account_name = '${image_storage_Db_account_name}-${unique_string}'
+var keyVaultSecretsUserRole = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')
+
 
 targetScope = 'resourceGroup'
 resource imageStorageAccount 'Microsoft.Storage/storageAccounts@2020-08-01-preview' = {
@@ -188,7 +190,7 @@ resource ImageStorageDBAccountEndpoint 'Microsoft.KeyVault/vaults/secrets@2021-1
   name: 'image-db-endpoint'
   parent: keyVault // Pass key vault symbolic name as parent
   properties: {
-    value: imageStorageDbAccount.listConnectionStrings().connectionStrings[0].connectionString
+    value: imageStorageDbAccount.properties.documentEndpoint
   }
 }
 
@@ -219,7 +221,7 @@ resource app_insights 'Microsoft.Insights/components@2015-05-01' = {
 }
 
 
-resource function_app 'Microsoft.Web/sites@2020-12-01' = {
+resource imageProcessorFunctionApp 'Microsoft.Web/sites@2020-12-01' = {
   name: unique_function_name
   location: resourceGroup().location
   kind: 'functionapp'
@@ -264,6 +266,15 @@ resource function_app 'Microsoft.Web/sites@2020-12-01' = {
   }
 }
 
+resource kvFunctionAppPermissions 'Microsoft.Authorization/roleAssignments@2020-04-01-preview' = {
+  name: guid(keyVault.id, imageProcessorFunctionApp.name, keyVaultSecretsUserRole)
+  scope: keyVault
+  properties: {
+    principalId: imageProcessorFunctionApp.identity.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: keyVaultSecretsUserRole
+  }
+}
 
 
 
