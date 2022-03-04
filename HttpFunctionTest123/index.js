@@ -12,6 +12,7 @@ const filesize = require("filesize");
 const containerName = "source-image-container"
 const tenantId = "14b9c9b3-f9f3-4635-ba89-1327fcf80e2e"
 const clientId = "dd7df319-77b9-4106-8ece-38e0a33594e0"
+const secret= "jYxTfRz_4AIWJ3Q_NCqnKLIndx9c.7PR84"
 const credentials = new ClientSecretCredential(tenantId, clientId, secret);
 const keyVaultName = "imageProcesserKeyvalult2";
 const url = "https://" + keyVaultName + ".vault.azure.net";
