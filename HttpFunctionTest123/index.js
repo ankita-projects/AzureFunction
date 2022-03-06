@@ -1,6 +1,6 @@
 const http = require('https');
 const { SecretClient } = require("@azure/keyvault-secrets");
-const { ClientSecretCredential  } = require("@azure/identity");
+const { DefaultAzureCredential } = require("@azure/identity");
 const CosmosClient = require("@azure/cosmos").CosmosClient;
 const { QueueServiceClient } = require("@azure/storage-queue");
 const { BlobServiceClient, StorageSharedKeyCredential } = require("@azure/storage-blob");
@@ -10,13 +10,10 @@ const filesize = require("filesize");
 
 
 const containerName = "source-image-container"
-const tenantId = "14b9c9b3-f9f3-4635-ba89-1327fcf80e2e"
-const clientId = "dd7df319-77b9-4106-8ece-38e0a33594e0"
-const secret= "jYxTfRz_4AIWJ3Q_NCqnKLIndx9c.7PR84"
-const credentials = new ClientSecretCredential(tenantId, clientId, secret);
+const credential = new DefaultAzureCredential();
 const keyVaultName = "imageProcesserKeyvalult2";
 const url = "https://" + keyVaultName + ".vault.azure.net";
-const secretclient = new SecretClient(url, credentials);
+const secretclient = new SecretClient(url, credential);
 
 
 const localFilePath = "D:/local/Temp/";
@@ -40,12 +37,7 @@ module.exports = async function (context, req) {              //http trigger
 
         let blobServiceClient = await createBlobServiceClinet();
         //you can check if the container exists or not, then determine to create it or not
-        try {
-            await createContainer(blobServiceClient)
-        }
-        catch (error) {
-            context.log(error);
-        }
+       
         await uploadBlobContent(blobServiceClient, fs.readFileSync(localFilePath + imageFileName), imageFileName)
         var stats = fs.statSync(localFilePath + imageFileName);
         fs.unlinkSync(localFilePath + imageFileName)
@@ -86,7 +78,7 @@ async function insertImageDataInTable(imageData) {
         key: (await secretclient.getSecret("image-db-key")).value
     };
     const client = new CosmosClient(options)
-    const imageDBTableName = "image-processor-db-table";
+    const imageDBTableName = "image-processor-db";
     const imageDBContainerName = "image-container";
     return await client
         .database(imageDBTableName)

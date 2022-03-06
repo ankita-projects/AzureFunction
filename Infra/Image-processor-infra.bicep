@@ -1,13 +1,12 @@
 param function_app_name string = 'image-processor-function-app'
 param appservice_plan_name string = 'image-processor-app-service-app'
 param app_insights_name string = 'image-processor-appinsights'
-param image_storage_Db_account_name string = 'image-processor-db-account' 
+param image_storage_Db_account_name string = 'image-processor-db-account'
 
 var unique_string = uniqueString(resourceGroup().id)
 var unique_function_name = '${function_app_name}-${unique_string}'
 var unique_DB_account_name = '${image_storage_Db_account_name}-${unique_string}'
 var keyVaultSecretsUserRole = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')
-
 
 targetScope = 'resourceGroup'
 resource imageStorageAccount 'Microsoft.Storage/storageAccounts@2020-08-01-preview' = {
@@ -62,17 +61,15 @@ resource imageQueue 'Microsoft.Storage/storageAccounts/queueServices/queues@2021
   properties: {}
 }
 
-
 //CosmosDB database
-
 
 resource imageStorageDbAccount 'Microsoft.DocumentDB/databaseAccounts@2021-04-15' = {
   name: unique_DB_account_name
   location: resourceGroup().location
-  properties:{
-    databaseAccountOfferType:'Standard'
-    enableAutomaticFailover:false
-    enableMultipleWriteLocations:false
+  properties: {
+    databaseAccountOfferType: 'Standard'
+    enableAutomaticFailover: false
+    enableMultipleWriteLocations: false
     consistencyPolicy: {
       defaultConsistencyLevel: 'Session'
     }
@@ -91,28 +88,77 @@ resource imageStorageDB 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2021
   dependsOn: [
     imageStorageDbAccount
   ]
-  properties:{
-    resource:{
-      id:'image-processor-db'
+  properties: {
+    resource: {
+      id: 'image-processor-db'
     }
   }
 }
 
 resource imageStorageDBContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2021-06-15' = {
-  name:'${imageStorageDB.name}/image-container'
+  name: '${imageStorageDB.name}/image-container'
   dependsOn: [
     imageStorageDbAccount
     imageStorageDB
   ]
-  properties:{
-    resource:{
+  properties: {
+    resource: {
       id: 'image-container'
-      partitionKey:{
-        paths:[
+      partitionKey: {
+        paths: [
           '/imageId'
         ]
-        kind:'Hash'
+        kind: 'Hash'
       }
+    }
+  }
+}
+
+resource imageProcessorFunctionApp 'Microsoft.Web/sites@2020-12-01' = {
+  name: unique_function_name
+  location: resourceGroup().location
+  kind: 'functionapp'
+  identity: {
+    type: 'SystemAssigned'
+  }
+  dependsOn: [
+    imageStorageAccount
+    appservice_plan
+    app_insights
+  ]
+  properties: {
+    serverFarmId: appservice_plan.id
+    siteConfig: {
+      appSettings: [
+        {
+          name: 'AzureWebJobsStorage'
+          value: concat('DefaultEndpointsProtocol=https;AccountName=', imageStorageAccount.name, ';AccountKey=', listKeys(imageStorageAccount.id, '2019-06-01').keys[0].value)
+        }
+        {
+          name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
+          value: reference(app_insights.id, '2015-05-01').InstrumentationKey
+        }
+        {
+          name: 'FUNCTIONS_EXTENSION_VERSION'
+          value: '~3'
+        }
+        {
+          name: 'FUNCTIONS_WORKER_RUNTIME'
+          value: 'node'
+        }
+        {
+          name: 'WEBSITE_NODE_DEFAULT_VERSION'
+          value: '~14'
+        }
+        {
+          name: 'WEBSITE_RUN_FROM_PACKAGE'
+          value: ''
+        }
+        {
+          name: 'MyStorageConnectionAppSetting'
+          value: 'DefaultEndpointsProtocol=https;AccountName=${imageStorageAccount.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${listKeys(imageStorageAccount.id, imageStorageAccount.apiVersion).keys[0].value}'
+        }
+      ]
     }
   }
 }
@@ -130,7 +176,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2019-09-01' = {
     accessPolicies: [
       {
         tenantId: '14b9c9b3-f9f3-4635-ba89-1327fcf80e2e'
-        objectId: '0e5a6635-c081-49c2-a7ba-4c6058d2ea8c'
+        objectId: imageProcessorFunctionApp.identity.principalId
         permissions: {
           secrets: [
             'all'
@@ -159,7 +205,7 @@ resource ImageStorageAccountConnectionString 'Microsoft.KeyVault/vaults/secrets@
   name: 'ImageStorageAccountConnectionString'
   parent: keyVault // Pass key vault symbolic name as parent
   properties: {
-    value: 'mySecretValue'
+    value: 'DefaultEndpointsProtocol=https;AccountName=${imageStorageAccount.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${listKeys(imageStorageAccount.id, imageStorageAccount.apiVersion).keys[0].value}'
   }
 }
 
@@ -198,13 +244,13 @@ resource imageProcessorQueueName 'Microsoft.KeyVault/vaults/secrets@2021-11-01-p
   name: 'imageProcessorQueueName'
   parent: keyVault // Pass key vault symbolic name as parent
   properties: {
-    value: imageQueue.name
+    value: 'image-processing-queue'
   }
 }
 
 resource appservice_plan 'Microsoft.Web/serverfarms@2020-12-01' = {
   name: appservice_plan_name
-  location:resourceGroup().location
+  location: resourceGroup().location
   sku: {
     name: 'Y1'
     tier: 'Dynamic'
@@ -220,52 +266,6 @@ resource app_insights 'Microsoft.Insights/components@2015-05-01' = {
   }
 }
 
-
-resource imageProcessorFunctionApp 'Microsoft.Web/sites@2020-12-01' = {
-  name: unique_function_name
-  location: resourceGroup().location
-  kind: 'functionapp'
-  identity: {
-    type: 'SystemAssigned'
-  }
-  dependsOn: [
-    imageStorageAccount
-    appservice_plan
-    app_insights
-  ]
-  properties: {
-    serverFarmId: appservice_plan.id
-    siteConfig: {
-      appSettings: [
-        {
-          name: 'AzureWebJobsStorage'
-          value: concat('DefaultEndpointsProtocol=https;AccountName=',  imageStorageAccount.name, ';AccountKey=', listKeys( imageStorageAccount.id, '2019-06-01').keys[0].value)
-        }
-        {
-          name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-          value: reference(app_insights.id, '2015-05-01').InstrumentationKey
-        }
-        {
-          name: 'FUNCTIONS_EXTENSION_VERSION'
-          value: '~3'
-        }
-        {
-          name: 'FUNCTIONS_WORKER_RUNTIME'
-          value: 'node'
-        }
-        {
-          name: 'WEBSITE_NODE_DEFAULT_VERSION'
-          value: '~14'
-        }
-        {
-          name: 'WEBSITE_RUN_FROM_PACKAGE'
-          value: ''
-        }
-      ]
-    }
-  }
-}
-
 resource kvFunctionAppPermissions 'Microsoft.Authorization/roleAssignments@2020-04-01-preview' = {
   name: guid(keyVault.id, imageProcessorFunctionApp.name, keyVaultSecretsUserRole)
   scope: keyVault
@@ -275,7 +275,3 @@ resource kvFunctionAppPermissions 'Microsoft.Authorization/roleAssignments@2020-
     roleDefinitionId: keyVaultSecretsUserRole
   }
 }
-
-
-
-
