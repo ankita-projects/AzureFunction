@@ -48,6 +48,9 @@ jobs:
         azcliversion: 2.30.0
         inlineScript: |
             az deployment group create --resource-group Ankita-Bicep-RG --template-file Infra/Image-processor-infra.bicep  --query properties.outputs.sqlRoleAssignmentId
+    - name: Sleep for 3 min
+      run: sleep 3m
+      shell: bash
     - name: 'Deploy Function Code'
       uses: wei/curl@v1
       with:
