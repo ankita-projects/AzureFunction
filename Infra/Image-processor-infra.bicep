@@ -135,6 +135,10 @@ resource imageProcessorFunctionApp 'Microsoft.Web/sites@2020-12-01' = {
           value: concat('DefaultEndpointsProtocol=https;AccountName=', imageStorageAccount.name, ';AccountKey=', listKeys(imageStorageAccount.id, '2019-06-01').keys[0].value)
         }
         {
+          name: 'MyStorageConnectionAppSetting'
+          value: concat('DefaultEndpointsProtocol=https;AccountName=', imageStorageAccount.name, ';AccountKey=', listKeys(imageStorageAccount.id, '2019-06-01').keys[0].value)
+        }
+        {
           name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
           value: reference(app_insights.id, '2015-05-01').InstrumentationKey
         }
@@ -153,10 +157,6 @@ resource imageProcessorFunctionApp 'Microsoft.Web/sites@2020-12-01' = {
         {
           name: 'WEBSITE_RUN_FROM_PACKAGE'
           value: ''
-        }
-        {
-          name: 'MyStorageConnectionAppSetting'
-          value: 'DefaultEndpointsProtocol=https;AccountName=${imageStorageAccount.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${listKeys(imageStorageAccount.id, imageStorageAccount.apiVersion).keys[0].value}'
         }
       ]
     }

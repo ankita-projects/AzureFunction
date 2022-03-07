@@ -12,7 +12,7 @@ const filesize = require("filesize");
 
 
 const credential = new DefaultAzureCredential();
-const keyVaultName = "imageProcesserKeyvalult";
+const keyVaultName = "imageProcesserKeyvalult2";
 const url = "https://" + keyVaultName + ".vault.azure.net";
 const secretclient = new SecretClient(url, credential);
 
