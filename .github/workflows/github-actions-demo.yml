@@ -54,5 +54,4 @@ jobs:
     - name: 'Deploy Function Code'
       uses: wei/curl@v1
       with:
-        azcliversion: 2.30.0
         args: -u ${{ secrets.FUNCTION_CODE_DEPLOYMENT_SECRET }} --upload-file functionDeploymetPackage.zip https://image-processor-function-app-4lzwihpqta32o.scm.azurewebsites.net/api/zipdeploy
